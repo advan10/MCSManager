@@ -17,9 +17,16 @@ RUN apk add --no-cache wget &&\
 FROM eclipse-temurin:${EMBEDDED_JAVA_VERSION}-jdk
 
 ARG DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y curl &&\
-    curl -fsSL https://deb.nodesource.com/setup_24.x | bash &&\
-    apt-get update && apt-get install -y nodejs && apt-get clean
+# Install pinned Node.js from the official tarball (includes npm). Avoids the
+# NodeSource script: `curl | bash` swallows download failures (pipe exit code),
+# silently falling back to the distro nodejs package which ships without npm.
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates xz-utils &&\
+    ARCH=$(dpkg --print-architecture) &&\
+    curl -fsSL -o /tmp/node.tar.xz https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-${ARCH}.tar.xz &&\
+    tar -xJf /tmp/node.tar.xz --strip-components=1 -C /usr/local &&\
+    rm /tmp/node.tar.xz &&\
+    apt-get clean && rm -rf /var/lib/apt/lists/* &&\
+    node -v && npm -v
 
 WORKDIR /opt/mcsmanager/daemon
 
